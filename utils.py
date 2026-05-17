@@ -1,8 +1,28 @@
 from yaml import safe_load, dump
 from getpass import getpass
+from cryptography.fernet import Fernet
+import os
 import re
+import stat
 
 SETTINGS_FILENAME = "settings.yaml"
+KEYFILE_PATH = os.path.expanduser("~/.pcloud_keyfile")
+
+def _load_or_create_key():
+    if os.path.exists(KEYFILE_PATH):
+        with open(KEYFILE_PATH, "rb") as f:
+            return f.read().strip()
+    key = Fernet.generate_key()
+    with open(KEYFILE_PATH, "wb") as f:
+        f.write(key)
+    os.chmod(KEYFILE_PATH, stat.S_IRUSR | stat.S_IWUSR)
+    return key
+
+def _encrypt(plaintext):
+    return Fernet(_load_or_create_key()).encrypt(plaintext.encode()).decode()
+
+def _decrypt(ciphertext):
+    return Fernet(_load_or_create_key()).decrypt(ciphertext.encode()).decode()
 
 def loadSettings():
     settings = {}
@@ -19,9 +39,14 @@ def loadSettings():
         email = input("Please provide email for pCloud: ")
         settings["pcloud"]["email"] = email.strip()
 
-    if "password" not in settings["pcloud"] or settings["pcloud"]["password"].strip() == "":
+    # Migrate plaintext password to encrypted form if present
+    if "password" in settings["pcloud"] and settings["pcloud"]["password"]:
+        plaintext = str(settings["pcloud"].pop("password"))
+        settings["pcloud"]["password_enc"] = _encrypt(plaintext)
+
+    if "password_enc" not in settings["pcloud"] or not settings["pcloud"]["password_enc"]:
         password = getpass("Please provide password for pCloud: ")
-        settings["pcloud"]["password"] = password.strip()
+        settings["pcloud"]["password_enc"] = _encrypt(password.strip())
 
     if "folder" not in settings["pcloud"] or settings["pcloud"]["folder"].strip() == "":
         folder = input("Please provide folder for pCloud: ")
@@ -39,11 +64,17 @@ def loadSettings():
         settings["padlet"]["wallid"] = wallid.strip()
 
     saveSettings(settings)
+
+    # Expose decrypted password in memory only — never written back to disk
+    settings["pcloud"]["password"] = _decrypt(settings["pcloud"]["password_enc"])
     return settings
 
 def saveSettings(settings):
+    import copy
+    safe = copy.deepcopy(settings)
+    safe.get("pcloud", {}).pop("password", None)
     with open(SETTINGS_FILENAME, 'w') as file:
-        dump(settings, file, allow_unicode=True)
+        dump(safe, file, allow_unicode=True)
 
 def cleanUp(t, max_len = 100):
     tag_re = re.compile(r'(<!--.*?-->|<[^>]*>)')
