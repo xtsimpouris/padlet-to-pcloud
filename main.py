@@ -36,7 +36,7 @@ def listfolder(settings, folder):
         name = requests.utils.unquote(name)
         if not name or requests.utils.unquote(href).rstrip("/") == folder.rstrip("/"):
             continue
-        x = re.search(r"^[0-9]{4}-[0-9]{2}-[0-9]{2} ([0-9]+).*?\\..*", name)
+        x = re.search(r"^[0-9]{4}-[0-9]{2}-[0-9]{2} ([0-9]+).*?\..+", name)
         if not x:
             continue
         size_el = response.find(".//d:getcontentlength", ns)

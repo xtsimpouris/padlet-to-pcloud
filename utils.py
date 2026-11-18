@@ -3,6 +3,7 @@ from getpass import getpass
 from cryptography.fernet import Fernet
 import os
 import re
+import requests
 import stat
 
 SETTINGS_FILENAME = "settings.yaml"
@@ -59,6 +60,14 @@ def loadSettings():
     if "padlet" not in settings:
         settings["padlet"] = {}
 
+    url = str(settings["padlet"].get("url") or "").strip()
+    if url:
+        wallid = resolveWallId(url)
+        if wallid:
+            settings["padlet"]["wallid"] = wallid
+        else:
+            print("Could not resolve wallid from padlet url '%s'" % url)
+
     if "wallid" not in settings["padlet"] or settings["padlet"]["wallid"].strip() == "":
         wallid = input("Please provide wallid for padlet: ")
         settings["padlet"]["wallid"] = wallid.strip()
@@ -68,6 +77,17 @@ def loadSettings():
     # Expose decrypted password in memory only — never written back to disk
     settings["pcloud"]["password"] = _decrypt(settings["pcloud"]["password_enc"])
     return settings
+
+def resolveWallId(url):
+    """Extract the wall hashid (board_...) from a public padlet page."""
+    try:
+        response = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=30)
+        response.raise_for_status()
+    except requests.RequestException as e:
+        print("Failed to fetch padlet url: %s" % e)
+        return None
+    x = re.search(r"wall_hashid=(board_[A-Za-z0-9]+)", response.text)
+    return x.group(1) if x else None
 
 def saveSettings(settings):
     import copy

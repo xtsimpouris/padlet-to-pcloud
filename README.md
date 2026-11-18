@@ -20,7 +20,17 @@ Our kid goes to the kinder garden, and the teacher provides weekly updates to al
 ## How do I provide settings?
 First execute will provide a small "wizard" where all missing information must be provided. All information are saved at file `settings.yaml`. In case some of the settings are wrong, you can delete the file and start over.
 
+## Can I just give the padlet URL instead of the "wall id"?
+Yes. Add the padlet URL in `settings.yaml`, and the wall id is looked up automatically on every run:
+```yaml
+padlet:
+  url: https://padlet.com/<user>/<padlet-name>
+```
+
 ## Wizard requests for a "wall id", how do I find that?
+Quickest way: `curl -sL <padlet url> | grep -oE 'wall_hashid=board_[A-Za-z0-9]+'`
+
+Or manually:
 1. Login to padlet
 2. Open developer tools and select "Network" tab
 3. Search for `https://padlet.com/api/10/wishes`
