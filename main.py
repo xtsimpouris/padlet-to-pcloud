@@ -37,7 +37,7 @@ def listfolder(settings, folder):
         name = requests.utils.unquote(name)
         if not name or requests.utils.unquote(href).rstrip("/") == folder.rstrip("/"):
             continue
-        x = re.search(r"^[0-9]{4}-[0-9]{2}-[0-9]{2} ([0-9]+).*?\..+", name)
+        x = re.search(r"^[0-9]{4}-[0-9]{2}-[0-9]{2} ([0-9]+(?:-[0-9]+)?).*?\..+", name)
         if not x:
             continue
         size_el = response.find(".//d:getcontentlength", ns)
@@ -80,12 +80,28 @@ while hash_id:
     hash_id = "https://padlet.com/api/10/wishes?wall_hashid=%s&page_start=%s" % (
         settings["padlet"]["wallid"], data.get("meta", {}).get("next", False))
 
+def postImages(post):
+    """Unique image urls of a post, main attachment first.
+
+    'attachments' lists every image when there are several (usually including
+    the main one); urls are compared without the expiry token query string.
+    """
+    candidates = [post.get("attachment")] + [a.get("url") for a in (post.get("attachments") or [])]
+    urls, seen = [], set()
+    for url in candidates:
+        if url and url.split("?")[0] not in seen:
+            seen.add(url.split("?")[0])
+            urls.append(url)
+    return urls
+
+def extension(url, fallback):
+    x = re.search(r"\.([A-Za-z0-9]+)$", url.split("?")[0])
+    return x.group(1).lower() if x else fallback
+
 print("Let's start downloading")
 for post_id in posts:
     post = posts[post_id]["attributes"]
-
-    if str(post.get("id", "")) in existing_files:
-        continue
+    pid = str(post.get("id", ""))
 
     created_at = datetime.strptime(post["created_at"], '%Y-%m-%dT%H:%M:%S.%fZ')
 
@@ -94,27 +110,35 @@ for post_id in posts:
     if not title:
         title = cleanUp(post.get("body") or "", max_len=50)
 
-    final_name = ("%s %s %s" % (created_at.strftime("%Y-%m-%d"), str(post.get("id", "")), title)).strip()
-    final_name += "." + post["attachment_link"]["extension"]
+    fallback_ext = (post.get("attachment_link") or {}).get("extension") or "jpg"
 
-    print("Downloading.. %s" % final_name, end="")
-    response = requests.get(post["attachment"])
-    if response.status_code == 200:
-        with open(final_name, "wb") as f:
-            for chunk in response:
-                f.write(chunk)
-        print(" ..Done")
-    else:
-        print(" ..Error!!")
-        continue
+    for index, url in enumerate(postImages(post), start=1):
+        # First image keeps the plain post id so earlier uploads are still recognised
+        key = pid if index == 1 else "%s-%d" % (pid, index)
+        if key in existing_files:
+            continue
 
-    if not writeMetadata(final_name, htmlToText(post.get("headline")), htmlToText(post.get("body"))):
-        print("(no metadata written, unsupported format)")
+        final_name = ("%s %s %s" % (created_at.strftime("%Y-%m-%d"), key, title)).strip()
+        final_name += "." + extension(url, fallback_ext)
 
-    print("Uploading.. %s" % final_name, end="")
-    if upload(settings, final_name, settings["pcloud"]["folder"]):
-        print(" ..Done")
-    else:
-        print(" ..Error!!")
+        print("Downloading.. %s" % final_name, end="")
+        response = requests.get(url)
+        if response.status_code == 200:
+            with open(final_name, "wb") as f:
+                for chunk in response:
+                    f.write(chunk)
+            print(" ..Done")
+        else:
+            print(" ..Error!!")
+            continue
 
-    os.unlink(final_name)
+        if not writeMetadata(final_name, htmlToText(post.get("headline")), htmlToText(post.get("body"))):
+            print("(no metadata written, unsupported format)")
+
+        print("Uploading.. %s" % final_name, end="")
+        if upload(settings, final_name, settings["pcloud"]["folder"]):
+            print(" ..Done")
+        else:
+            print(" ..Error!!")
+
+        os.unlink(final_name)
