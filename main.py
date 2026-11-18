@@ -1,4 +1,5 @@
 from utils import loadSettings, saveSettings, cleanUp
+from metadata import writeMetadata, htmlToText
 import re
 import requests
 from requests.auth import HTTPBasicAuth
@@ -88,9 +89,10 @@ for post_id in posts:
 
     created_at = datetime.strptime(post["created_at"], '%Y-%m-%dT%H:%M:%S.%fZ')
 
-    title = cleanUp(post.get("body", ""))
+    # Short headline goes in the filename, full post text in the image metadata
+    title = cleanUp(post.get("headline") or "", max_len=50)
     if not title:
-        title = cleanUp(post.get("headline", ""))
+        title = cleanUp(post.get("body") or "", max_len=50)
 
     final_name = ("%s %s %s" % (created_at.strftime("%Y-%m-%d"), str(post.get("id", "")), title)).strip()
     final_name += "." + post["attachment_link"]["extension"]
@@ -105,6 +107,9 @@ for post_id in posts:
     else:
         print(" ..Error!!")
         continue
+
+    if not writeMetadata(final_name, htmlToText(post.get("headline")), htmlToText(post.get("body"))):
+        print("(no metadata written, unsupported format)")
 
     print("Uploading.. %s" % final_name, end="")
     if upload(settings, final_name, settings["pcloud"]["folder"]):

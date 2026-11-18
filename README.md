@@ -35,3 +35,5 @@ Yes, remove `url` and set `wallid` under `padlet` in `settings.yaml`. To find it
 
 ## I don't feel confortable with locally stored settings, is there a chance this file may be committed?
 No, `settings.yaml` is always ignored
+## Where is the full post text?
+Filenames only carry the date, the post id and the (short) post headline. The full post text is embedded in the image as XMP metadata (`dc:title` = headline, `dc:description` = post text), without re-encoding the image. Supported for JPEG, PNG and WebP.
