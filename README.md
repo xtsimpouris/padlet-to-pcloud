@@ -20,22 +20,18 @@ Our kid goes to the kinder garden, and the teacher provides weekly updates to al
 ## How do I provide settings?
 First execute will provide a small "wizard" where all missing information must be provided. All information are saved at file `settings.yaml`. In case some of the settings are wrong, you can delete the file and start over.
 
-## Can I just give the padlet URL instead of the "wall id"?
-Yes. Add the padlet URL in `settings.yaml`, and the wall id is looked up automatically on every run:
-```yaml
-padlet:
-  url: https://padlet.com/<user>/<padlet-name>
-```
+## Wizard requests for a padlet URL, which one?
+The address of the padlet you open in the browser, e.g. `https://padlet.com/<user>/<padlet-name>`. The "wall id" the API needs is looked up from that page automatically on every run, and stored as `padlet.wallid` in `settings.yaml`.
 
-## Wizard requests for a "wall id", how do I find that?
-Quickest way: `curl -sL <padlet url> | grep -oE 'wall_hashid=board_[A-Za-z0-9]+'`
-
-Or manually:
-1. Login to padlet
-2. Open developer tools and select "Network" tab
-3. Search for `https://padlet.com/api/10/wishes`
-4. In case no row is found, hit Refresh (F5)
-5. URL param `wall_hashid` is what we need, copy paste and provide it in wizard
+## Can I provide the "wall id" directly instead?
+Yes, remove `url` and set `wallid` under `padlet` in `settings.yaml`. To find it:
+- Quickest way: `curl -sL <padlet url> | grep -oE 'wall_hashid=board_[A-Za-z0-9]+'`
+- Or manually:
+  1. Login to padlet
+  2. Open developer tools and select "Network" tab
+  3. Search for `https://padlet.com/api/10/wishes`
+  4. In case no row is found, hit Refresh (F5)
+  5. URL param `wall_hashid` is what we need
 
 ## I don't feel confortable with locally stored settings, is there a chance this file may be committed?
 No, `settings.yaml` is always ignored

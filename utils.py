@@ -61,16 +61,27 @@ def loadSettings():
         settings["padlet"] = {}
 
     url = str(settings["padlet"].get("url") or "").strip()
-    if url:
-        wallid = resolveWallId(url)
-        if wallid:
-            settings["padlet"]["wallid"] = wallid
-        else:
-            print("Could not resolve wallid from padlet url '%s'" % url)
+    wallid = str(settings["padlet"].get("wallid") or "").strip()
 
-    if "wallid" not in settings["padlet"] or settings["padlet"]["wallid"].strip() == "":
-        wallid = input("Please provide wallid for padlet: ")
-        settings["padlet"]["wallid"] = wallid.strip()
+    if not url and not wallid:
+        url = input("Please provide padlet url (e.g. https://padlet.com/<user>/<padlet-name>): ").strip()
+        settings["padlet"]["url"] = url
+
+    if not url and not wallid:
+        print("Padlet url is required")
+        exit()
+
+    if url:
+        resolved = resolveWallId(url)
+        if resolved:
+            settings["padlet"]["wallid"] = resolved
+        elif wallid:
+            print("Could not resolve wallid from padlet url '%s', using stored wallid" % url)
+        else:
+            print("Could not resolve wallid from padlet url '%s', please provide a valid one" % url)
+            del settings["padlet"]["url"]
+            saveSettings(settings)
+            exit()
 
     saveSettings(settings)
 
